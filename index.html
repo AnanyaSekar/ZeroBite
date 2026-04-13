@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#16a34a">
+<title>ZeroBite – Surplus Food Redistribution</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --green:#22c55e;--green-light:#bbf7d0;--green-dark:#15803d;
+  --yellow:#eab308;--yellow-light:#fef9c3;
+  --red:#ef4444;--red-light:#fee2e2;
+  --bg:#f0fdf4;--surface:#fff;--surface2:#f9fafb;
+  --border:#e5e7eb;--text:#111827;--text2:#6b7280;--text3:#9ca3af;
+  --accent:#16a34a;--accent2:#4ade80;
+  --shadow:0 4px 24px rgba(22,163,74,0.10);
+  --radius:18px;
+  --font-display:'Clash Display',sans-serif;
+  --font-sans:'Syne',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+.screen{display:none;min-height:100vh;flex-direction:column;animation:fadeIn .35s ease;}
+.screen.active{display:flex;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.topbar{background:var(--surface);border-bottom:1.5px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(22,163,74,0.07);}
+.topbar .logo{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);}
+.topbar .logo span{color:var(--text);}
+.back-btn{background:var(--green-light);border:none;border-radius:10px;padding:7px 14px;font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--green-dark);cursor:pointer;}
+
+/* LOGIN */
+#screen-login{background:linear-gradient(145deg,#052e16,#14532d,#166534);align-items:center;justify-content:center;padding:20px;}
+.login-card{background:rgba(255,255,255,0.06);backdrop-filter:blur(18px);border:1.5px solid rgba(255,255,255,0.13);border-radius:28px;padding:40px 32px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:20px;box-shadow:0 24px 80px rgba(0,0,0,0.35);}
+.login-logo{font-family:var(--font-display);font-size:34px;font-weight:700;color:#fff;text-align:center;}
+.login-logo span{color:var(--accent2);}
+.login-tagline{text-align:center;color:rgba(255,255,255,0.65);font-size:14px;line-height:1.6;margin-top:-8px;}
+.google-btn{background:#fff;border:none;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:12px;font-family:var(--font-sans);font-size:15px;font-weight:600;color:#374151;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.18);transition:transform .15s;}
+.google-btn:hover{transform:translateY(-2px);}
+.divider-or{display:flex;align-items:center;gap:12px;}
+.divider-or span{flex:1;height:1px;background:rgba(255,255,255,0.2);}
+.divider-or p{color:rgba(255,255,255,0.5);font-size:12px;}
+.phone-toggle-btn{background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:14px;padding:14px;color:#fff;font-family:var(--font-sans);font-size:14px;font-weight:600;cursor:pointer;text-align:center;width:100%;}
+.phone-section{display:none;flex-direction:column;gap:12px;}
+.phone-input-row{background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;}
+.phone-flag{color:#fff;font-size:16px;white-space:nowrap;}
+.phone-field{background:none;border:none;color:#fff;font-size:16px;outline:none;flex:1;width:100%;}
+.phone-field::placeholder{color:rgba(255,255,255,0.4);}
+.otp-btn{background:linear-gradient(135deg,var(--green),var(--green-dark));border:none;border-radius:12px;padding:13px;color:#fff;font-family:var(--font-sans);font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+.otp-btn:disabled{opacity:0.6;cursor:not-allowed;}
+.otp-input-field{background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:14px 16px;color:#fff;font-size:20px;outline:none;width:100%;text-align:center;letter-spacing:6px;}
+.back-link{background:none;border:none;color:rgba(255,255,255,0.5);font-size:12px;cursor:pointer;text-decoration:underline;text-align:center;width:100%;}
+.login-note{text-align:center;color:rgba(255,255,255,0.4);font-size:11px;}
+.billing-notice{background:rgba(234,179,8,0.15);border:1.5px solid rgba(234,179,8,0.4);border-radius:12px;padding:12px 14px;color:rgba(255,255,255,0.85);font-size:12px;line-height:1.6;text-align:center;}
+.billing-notice a{color:var(--accent2);font-weight:700;}
+
+/* HOME */
+#screen-home{padding-bottom:80px;}
+.hero-banner{background:linear-gradient(135deg,#14532d,#166534,#15803d);padding:28px 20px 36px;position:relative;overflow:hidden;}
+.hero-banner::after{content:'';position:absolute;right:-30px;bottom:-40px;width:200px;height:200px;border-radius:50%;background:rgba(74,222,128,0.12);}
+.hero-greeting{color:rgba(255,255,255,0.7);font-size:14px;}
+.hero-name{color:#fff;font-family:var(--font-display);font-size:24px;font-weight:700;margin:4px 0 16px;}
+.hero-stats{display:flex;gap:12px;}
+.hero-stat{background:rgba(255,255,255,0.12);border-radius:14px;padding:12px 16px;flex:1;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);}
+.hero-stat-num{color:var(--accent2);font-family:var(--font-display);font-size:22px;font-weight:700;}
+.hero-stat-lbl{color:rgba(255,255,255,0.65);font-size:11px;margin-top:2px;}
+.home-section{padding:20px 20px 0;}
+.section-title{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);margin-bottom:14px;}
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.qa-card{background:var(--surface);border-radius:var(--radius);padding:20px 16px;display:flex;flex-direction:column;gap:10px;border:1.5px solid var(--border);cursor:pointer;transition:box-shadow .2s,transform .15s,border-color .2s;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.qa-card:hover{transform:translateY(-3px);border-color:var(--green);}
+.qa-icon{font-size:32px;}.qa-title{font-family:var(--font-sans);font-size:14px;font-weight:700;}.qa-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+.qa-badge{position:absolute;top:12px;right:12px;background:var(--green-light);color:var(--green-dark);font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.food-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:4px;}.food-scroll::-webkit-scrollbar{display:none;}
+.food-mini-card{background:var(--surface);border-radius:14px;min-width:150px;border:1.5px solid var(--border);overflow:hidden;flex-shrink:0;cursor:pointer;transition:transform .15s;box-shadow:var(--shadow);}
+.food-mini-card:hover{transform:translateY(-3px);}
+.food-mini-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;background:#e5e7eb;}
+.food-mini-body{padding:10px 12px;}
+.food-mini-name{font-family:var(--font-sans);font-size:13px;font-weight:700;}.food-mini-dist{font-size:11px;color:var(--text2);margin-top:2px;}
+.freshness-bar{height:4px;border-radius:4px;margin-top:8px;}.fresh-bar{background:var(--green);}.moderate-bar{background:var(--yellow);}.expiring-bar{background:var(--red);}
+.freshness-label{font-size:10px;font-weight:700;margin-top:4px;}.lbl-fresh{color:var(--green-dark);}.lbl-moderate{color:#92400e;}.lbl-expiring{color:#991b1b;}
+.impact-card{background:linear-gradient(135deg,#052e16,#166534);border-radius:var(--radius);padding:22px;display:flex;align-items:center;gap:18px;margin:16px 20px 0;box-shadow:0 6px 30px rgba(22,163,74,0.25);}
+.impact-icon{font-size:44px;}.impact-text h3{color:#fff;font-family:var(--font-display);font-size:16px;font-weight:700;}.impact-text p{color:rgba(255,255,255,0.65);font-size:13px;margin-top:4px;line-height:1.5;}
+.community-feed{display:flex;flex-direction:column;gap:12px;}
+.feed-card{background:var(--surface);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;border:1.5px solid var(--border);box-shadow:var(--shadow);}
+.feed-avatar{width:40px;height:40px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.feed-text p{font-size:13px;color:var(--text);line-height:1.5;}.feed-time{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* DONATE */
+.form-card{background:var(--surface);border-radius:var(--radius);padding:22px;margin:16px;border:1.5px solid var(--border);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:18px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--text);}
+.field input,.field select,.field textarea{background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-family:var(--font-body);font-size:14px;color:var(--text);outline:none;transition:border-color .2s;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--green);}
+.field textarea{resize:vertical;min-height:70px;}
+.ai-weight-btn{background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:12px;padding:11px 14px;color:#fff;font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.submit-btn{background:linear-gradient(135deg,var(--green),var(--green-dark));border:none;border-radius:14px;padding:15px;color:#fff;font-family:var(--font-display);font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(22,163,74,0.35);transition:transform .15s;}
+.submit-btn:hover{transform:translateY(-2px);}.submit-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.freshness-selector{display:flex;gap:8px;}
+.freshness-opt{flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.freshness-opt.fresh-opt{color:var(--green-dark);}.freshness-opt.fresh-opt.selected{background:var(--green-light);border-color:var(--green);}
+.freshness-opt.mod-opt{color:#92400e;}.freshness-opt.mod-opt.selected{background:var(--yellow-light);border-color:var(--yellow);}
+.freshness-opt.exp-opt{color:#991b1b;}.freshness-opt.exp-opt.selected{background:var(--red-light);border-color:var(--red);}
+
+/* FOOD LIST */
+.search-filter-bar{padding:14px 16px 4px;display:flex;gap:10px;}
+.search-filter-bar input{flex:1;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;font-family:var(--font-body);font-size:14px;outline:none;}
+.search-filter-bar select{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:13px;outline:none;cursor:pointer;}
+.food-list{padding:16px;display:flex;flex-direction:column;gap:14px;}
+.food-card{background:var(--surface);border-radius:var(--radius);border:1.5px solid var(--border);overflow:hidden;box-shadow:var(--shadow);transition:transform .15s;}
+.food-card:hover{transform:translateY(-3px);}
+.food-card-img{width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:64px;background:#f3f4f6;position:relative;}
+.freshness-badge{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-fresh{background:var(--green);color:#fff;}.badge-moderate{background:var(--yellow);color:#fff;}.badge-expiring{background:var(--red);color:#fff;}
+.exp-timer{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;}
+.food-card-body{padding:16px;}
+.food-card-name{font-family:var(--font-display);font-size:18px;font-weight:700;}
+.food-card-meta{display:flex;justify-content:space-between;margin-top:8px;}
+.food-card-dist{color:var(--text2);font-size:12px;}.food-card-qty{font-size:12px;font-weight:600;color:var(--accent);}
+.food-card-phone{font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;}
+.food-card-actions{display:flex;gap:10px;padding:0 16px 16px;}
+.action-btn-map{flex:1;background:var(--green-light);border:none;border-radius:10px;padding:11px;font-family:var(--font-sans);font-size:13px;font-weight:700;color:var(--green-dark);cursor:pointer;}
+.action-btn-claim{flex:1;background:linear-gradient(135deg,var(--green),var(--green-dark));border:none;border-radius:10px;padding:11px;font-family:var(--font-sans);font-size:13px;font-weight:700;color:#fff;cursor:pointer;}
+.action-btn-delete{flex:1;background:var(--red-light);border:none;border-radius:10px;padding:11px;font-family:var(--font-sans);font-size:13px;font-weight:700;color:#991b1b;cursor:pointer;}
+
+/* MAP */
+#map-container{flex:1;min-height:400px;}
+.map-info-bar{background:var(--surface);padding:16px 20px;border-top:1.5px solid var(--border);display:flex;align-items:center;gap:14px;}
+.map-info-icon{font-size:32px;}.map-info-text h4{font-family:var(--font-sans);font-size:14px;font-weight:700;}.map-info-text p{font-size:12px;color:var(--text2);margin-top:2px;}
+.navigate-btn{margin-left:auto;background:var(--green);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;}
+
+/* EXPIRED */
+.expired-banner{background:linear-gradient(135deg,#7f1d1d,#991b1b);padding:28px 20px;display:flex;align-items:center;gap:16px;}
+.expired-banner-icon{font-size:48px;}.expired-banner-text h2{color:#fff;font-family:var(--font-display);font-size:20px;font-weight:700;}.expired-banner-text p{color:rgba(255,255,255,0.7);font-size:13px;margin-top:4px;}
+.agg-status{background:var(--surface);border-radius:var(--radius);padding:20px;margin:16px;border:1.5px solid var(--border);box-shadow:var(--shadow);}
+.agg-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:12px;}
+.agg-bar-wrap{background:#fee2e2;border-radius:20px;height:12px;overflow:hidden;}
+.agg-bar{background:linear-gradient(90deg,var(--red),#f87171);height:100%;border-radius:20px;transition:width 1s ease;}
+.agg-info{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--text2);}
+.redirect-cards{padding:0 16px 80px;display:flex;flex-direction:column;gap:12px;}
+.redirect-card{background:var(--surface);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:16px;border:1.5px solid var(--border);box-shadow:var(--shadow);cursor:pointer;transition:transform .15s;}
+.redirect-card:hover{transform:translateX(4px);}
+.redirect-icon{font-size:36px;width:52px;text-align:center;}.redirect-text h4{font-family:var(--font-sans);font-size:14px;font-weight:700;}.redirect-text p{font-size:12px;color:var(--text2);margin-top:3px;}.redirect-arrow{margin-left:auto;color:var(--text3);font-size:18px;}
+
+/* PROFILE */
+#screen-profile{padding-bottom:80px;}
+.profile-hero{background:linear-gradient(135deg,#14532d,#166534);padding:32px 20px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#fff;font-family:var(--font-display);border:3px solid rgba(255,255,255,0.3);}
+.profile-name{color:#fff;font-family:var(--font-display);font-size:20px;font-weight:700;}.profile-sub{color:rgba(255,255,255,0.65);font-size:14px;}
+.phone-card{margin:16px 16px 0;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);border-radius:14px;padding:16px;color:#fff;display:flex;align-items:center;gap:14px;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;}
+.stat-card{background:var(--surface);border-radius:14px;padding:16px;border:1.5px solid var(--border);box-shadow:var(--shadow);text-align:center;}
+.stat-num{font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--accent);}.stat-lbl{font-size:12px;color:var(--text2);margin-top:4px;}
+.badges-section{padding:0 16px 16px;}.badges-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:12px;}
+.badge-chip{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);color:var(--green-dark);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;margin:4px;}
+.logout-btn{margin:0 16px 16px;background:var(--red-light);border:none;border-radius:14px;padding:14px;color:#991b1b;font-family:var(--font-display);font-size:15px;font-weight:700;cursor:pointer;width:calc(100% - 32px);}
+
+/* NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1.5px solid var(--border);display:flex;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,0.06);}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;font-size:10px;font-family:var(--font-sans);font-weight:600;color:var(--text3);cursor:pointer;transition:color .2s;border:none;background:none;gap:4px;}
+.nav-item.active{color:var(--accent);}.nav-icon{font-size:22px;}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:flex-end;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal-sheet{background:var(--surface);border-radius:24px 24px 0 0;padding:24px;width:100%;animation:slideUp .3s ease;display:flex;flex-direction:column;gap:16px;max-height:90vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto -4px;}
+.modal-title{font-family:var(--font-display);font-size:20px;font-weight:700;}
+.modal-food-info{display:flex;align-items:center;gap:14px;padding:14px;background:var(--surface2);border-radius:12px;}
+.modal-food-emoji{font-size:40px;}
+.modal-close{border:none;background:var(--green-light);border-radius:10px;padding:13px;font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--green-dark);cursor:pointer;}
+.modal-confirm{border:none;background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:10px;padding:13px;font-family:var(--font-display);font-size:15px;font-weight:700;color:#fff;cursor:pointer;}
+.ai-preview{width:100%;max-height:200px;object-fit:cover;border-radius:12px;display:none;}
+.ai-result-card{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:14px;padding:16px;color:#fff;display:none;}
+.use-est-btn{background:#fff;color:#4f46e5;border:none;border-radius:10px;padding:12px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;}
+
+/* NOTIF */
+#screen-notifications{padding-bottom:80px;}
+.notif-header{background:linear-gradient(135deg,#1e3a5f,#1d4ed8);padding:24px 20px;color:#fff;}
+.notif-header h2{font-family:var(--font-display);font-size:22px;font-weight:700;}
+.notif-header p{color:rgba(255,255,255,0.7);font-size:13px;margin-top:4px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#052e16;color:#fff;padding:12px 24px;border-radius:14px;font-size:14px;font-weight:500;z-index:1000;opacity:0;transition:opacity .3s;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.25);}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen active" id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">🌱 Zero<span>Bite</span></div>
+    <p class="login-tagline">Connect surplus food with people who need it — zero waste, maximum impact.</p>
+
+    <div id="googleSection" style="display:flex;flex-direction:column;gap:14px;">
+      <button class="google-btn" onclick="loginWithGoogle()">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+          <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.615 24 12.255 24z"/>
+          <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 0 0 0 10.76l3.98-3.09z"/>
+          <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.64 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <div class="divider-or"><span></span><p>or</p><span></span></div>
+      <button class="phone-toggle-btn" onclick="showPhoneSection()">📱 Sign in with Phone Number</button>
+    </div>
+
+    <div id="phoneSection" class="phone-section">
+      <div class="billing-notice">
+        ⚠️ Phone OTP requires Firebase <strong>Blaze plan</strong>.<br>
+        <a href="https://console.firebase.google.com" target="_blank">Upgrade here</a> if OTP fails.
+      </div>
+      <div class="phone-input-row">
+        <span class="phone-flag">🇮🇳 +91</span>
+        <input class="phone-field" type="tel" id="phoneInput" maxlength="10" placeholder="10-digit number"/>
+      </div>
+      <div id="recaptcha-container"></div>
+      <button class="otp-btn" id="sendOTPBtn" onclick="sendOTP()">📤 Send OTP</button>
+      <div id="otpDiv" style="display:none;flex-direction:column;gap:12px;">
+        <input class="otp-input-field" type="number" id="otpInput" placeholder="Enter 6-digit OTP"/>
+        <button class="otp-btn" onclick="verifyOTP()">✅ Verify & Login</button>
+        <button class="back-link" onclick="resetPhoneFlow()">↩ Re-send OTP</button>
+      </div>
+      <button class="back-link" onclick="showGoogleSection()">← Back to Google Sign-in</button>
+    </div>
+
+    <p class="login-note">By signing in you agree to share food responsibly 🌿</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     HOME SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-home">
+  <div class="hero-banner">
+    <p class="hero-greeting">Welcome back,</p>
+    <h2 class="hero-name" id="heroName">Loading... 🌿</h2>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num" id="heroMeals">0</div><div class="hero-stat-lbl">Meals Saved</div></div>
+      <div class="hero-stat"><div class="hero-stat-num" id="heroKg">0 kg</div><div class="hero-stat-lbl">Food Shared</div></div>
+      <div class="hero-stat"><div class="hero-stat-num" id="heroDonors">0</div><div class="hero-stat-lbl">Available Now</div></div>
+    </div>
+  </div>
+  <div class="home-section">
+    <div class="section-title">What would you like to do?</div>
+    <div class="quick-actions">
+      <div class="qa-card" onclick="goTo('screen-donate')"><div class="qa-icon">🎁</div><div class="qa-title">Donate Food</div><div class="qa-desc">Share surplus meals with community</div><div class="qa-badge">Quick</div></div>
+      <div class="qa-card" onclick="goTo('screen-get')"><div class="qa-icon">🍽️</div><div class="qa-title">Find Food</div><div class="qa-desc">Discover free food near you</div></div>
+      <div class="qa-card" onclick="goTo('screen-expired')"><div class="qa-icon">♻️</div><div class="qa-title">Expired Food</div><div class="qa-desc">Auto-routes to nearest centre</div><div class="qa-badge" style="background:#fee2e2;color:#991b1b;">Auto</div></div>
+      <div class="qa-card" onclick="goTo('screen-profile')"><div class="qa-icon">🏆</div><div class="qa-title">My Impact</div><div class="qa-desc">Badges, stats & eco-score</div></div>
+    </div>
+  </div>
+  <div class="home-section" style="margin-top:8px;">
+    <div class="section-title">🔥 Available Near You</div>
+    <div class="food-scroll" id="nearbyScroll"><div style="color:var(--text2);font-size:13px;padding:20px;">Loading...</div></div>
+  </div>
+  <div class="impact-card">
+    <div class="impact-icon">🌍</div>
+    <div class="impact-text"><h3>Community saved <span id="communityKg">0</span> tonnes!</h3><p>Every kg shared reduces CO₂ & feeds someone in need.</p></div>
+  </div>
+  <div class="home-section" style="margin-top:16px;margin-bottom:8px;">
+    <div class="section-title">📣 Community Feed</div>
+    <div class="community-feed" id="communityFeed"></div>
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="goTo('screen-home')"><div class="nav-icon">🏠</div>Home</button>
+    <button class="nav-item" onclick="goTo('screen-get')"><div class="nav-icon">🍽️</div>Find</button>
+    <button class="nav-item" onclick="goTo('screen-donate')"><div class="nav-icon">🎁</div>Donate</button>
+    <button class="nav-item" onclick="goTo('screen-expired')"><div class="nav-icon">♻️</div>Expired</button>
+    <button class="nav-item" onclick="goTo('screen-notifications')"><div class="nav-icon">🔔</div>Alerts</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     DONATE SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-donate">
+  <div class="topbar"><button class="back-btn" onclick="goBack()">← Back</button><div class="logo">🌱 Donate <span>Food</span></div></div>
+  <div class="form-card">
+    <div class="field"><label>🍱 Food Name *</label><input type="text" id="foodName" placeholder="e.g. Rice, Idli, Veg Biryani…"/></div>
+    <div class="field">
+      <label>⚖️ Quantity (kg) *</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="number" id="foodQty" placeholder="e.g. 2.5" min="0.1" step="0.1" style="flex:1;"/>
+        <button class="ai-weight-btn" onclick="openAIModal()">📸 AI Estimate</button>
+      </div>
+    </div>
+    <div class="field"><label>🕐 Expiration Time *</label><input type="datetime-local" id="expiryInput"/></div>
+    <div class="field">
+      <label>🟢 Freshness</label>
+      <div class="freshness-selector">
+        <div class="freshness-opt fresh-opt selected" data-type="fresh" onclick="selectFreshness(this,'fresh')">🟢 Fresh</div>
+        <div class="freshness-opt mod-opt" data-type="moderate" onclick="selectFreshness(this,'moderate')">🟡 Moderate</div>
+        <div class="freshness-opt exp-opt" data-type="expiring" onclick="selectFreshness(this,'expiring')">🔴 Expiring</div>
+      </div>
+    </div>
+    <div class="field"><label>📍 Pickup Address *</label><input type="text" id="foodAddress" placeholder="Your full address…"/></div>
+    <div class="field"><label>📞 Your Contact Number *</label><input type="tel" id="donorPhone" placeholder="+91 XXXXXXXXXX"/></div>
+    <div class="field"><label>📝 Notes (optional)</label><textarea id="foodNotes" placeholder="Allergies, dietary info, storage tips…"></textarea></div>
+    <button class="submit-btn" id="submitBtn" onclick="submitDonation()">🎁 Post Donation</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     FIND FOOD SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-get">
+  <div class="topbar"><button class="back-btn" onclick="goBack()">← Back</button><div class="logo">🍽️ Find <span>Food</span></div></div>
+  <div class="search-filter-bar">
+    <input type="text" id="searchInput" placeholder="🔍 Search food or location…" oninput="filterFoods()"/>
+    <select id="freshnessFilter" onchange="filterFoods()">
+      <option value="all">All</option>
+      <option value="fresh">🟢 Fresh</option>
+      <option value="moderate">🟡 Moderate</option>
+      <option value="expiring">🔴 Expiring</option>
+    </select>
+  </div>
+  <div class="food-list" id="foodList"><div style="text-align:center;padding:40px;color:var(--text2);">⏳ Loading...</div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAP SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-map">
+  <div class="topbar"><button class="back-btn" onclick="goBack()">← Back</button><div class="logo">📍 <span>Live Map</span></div></div>
+  <div id="map-container"></div>
+  <div class="map-info-bar">
+    <div class="map-info-icon" id="mapFoodIcon">🍱</div>
+    <div class="map-info-text"><h4 id="mapFoodName">Food Name</h4><p id="mapDonorInfo">Donor · Distance</p></div>
+    <button class="navigate-btn" onclick="openGoogleMaps()">Open in Maps</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     EXPIRED SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-expired">
+  <div class="topbar"><button class="back-btn" onclick="goBack()">← Back</button><div class="logo">♻️ Expired <span>Food</span></div></div>
+  <div class="expired-banner">
+    <div class="expired-banner-icon">⏰</div>
+    <div class="expired-banner-text"><h2>Auto Expired Food System</h2><p>Auto-routes & notifies all 4 centres when 2kg threshold is reached.</p></div>
+  </div>
+  <div id="autoRouteAlert"></div>
+  <div class="agg-status">
+    <div class="agg-title">🏙️ City-Wide Threshold</div>
+    <div class="agg-bar-wrap"><div class="agg-bar" id="aggBar" style="width:0%"></div></div>
+    <div class="agg-info"><span>Collected: <span style="font-weight:700;color:var(--red)" id="aggKg">0 kg</span></span><span>Threshold: 2 kg</span></div>
+    <div id="aggReady" style="display:none;background:#fee2e2;border-radius:10px;padding:12px;margin-top:12px;color:#991b1b;font-size:13px;font-weight:600;">🚨 Threshold reached! Auto-routing...</div>
+  </div>
+  <button onclick="showExpiredMap()" style="margin:0 16px 16px;background:linear-gradient(135deg,var(--red),#dc2626);border:none;border-radius:14px;padding:14px;color:#fff;font-family:var(--font-display);font-size:15px;font-weight:700;cursor:pointer;width:calc(100% - 32px);">🗺️ View Bins & Centres Near Me</button>
+  <div style="padding:0 16px;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">MANUALLY NOTIFY →</div>
+  <div class="redirect-cards">
+    <div class="redirect-card" onclick="redirectTo('biogas')"><div class="redirect-icon">🔥</div><div class="redirect-text"><h4>Biogas Center</h4><p>Organic waste → clean biogas energy</p></div><div class="redirect-arrow">›</div></div>
+    <div class="redirect-card" onclick="redirectTo('compost')"><div class="redirect-icon">🌱</div><div class="redirect-text"><h4>Composting</h4><p>Rich compost to farms & gardens</p></div><div class="redirect-arrow">›</div></div>
+    <div class="redirect-card" onclick="redirectTo('pig')"><div class="redirect-icon">🐷</div><div class="redirect-text"><h4>Animal Feed</h4><p>Safe surplus to feed facilities</p></div><div class="redirect-arrow">›</div></div>
+    <div class="redirect-card" onclick="redirectTo('vermi')"><div class="redirect-icon">🪱</div><div class="redirect-text"><h4>Vermicomposting</h4><p>Worm farms → premium compost</p></div><div class="redirect-arrow">›</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     NOTIFICATIONS SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-notifications">
+  <div class="notif-header"><h2>🔔 Centre Alerts</h2><p>Real-time notifications to waste collection centres</p></div>
+  <div style="padding:16px;" id="notifList"><p style="color:var(--text2);font-size:13px;">No notifications yet.</p></div>
+  <div class="bottom-nav">
+    <button class="nav-item" onclick="goTo('screen-home')"><div class="nav-icon">🏠</div>Home</button>
+    <button class="nav-item" onclick="goTo('screen-get')"><div class="nav-icon">🍽️</div>Find</button>
+    <button class="nav-item" onclick="goTo('screen-donate')"><div class="nav-icon">🎁</div>Donate</button>
+    <button class="nav-item" onclick="goTo('screen-expired')"><div class="nav-icon">♻️</div>Expired</button>
+    <button class="nav-item active" onclick="goTo('screen-notifications')"><div class="nav-icon">🔔</div>Alerts</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PROFILE SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-profile">
+  <div class="topbar"><button class="back-btn" onclick="goBack()">← Back</button><div class="logo">👤 My <span>Impact</span></div></div>
+  <div class="profile-hero">
+    <div class="profile-avatar" id="profileAvatar">U</div>
+    <div class="profile-name" id="profileName">Loading...</div>
+    <div class="profile-sub" id="profileSub"></div>
+  </div>
+  <div class="phone-card">
+    <div style="font-size:28px;">📞</div>
+    <div><div style="font-size:12px;color:rgba(255,255,255,0.7);">Your Contact Number</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700;" id="statPhone">Not set</div></div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num" id="statDonations">0</div><div class="stat-lbl">🎁 Donations</div></div>
+    <div class="stat-card"><div class="stat-num" id="statClaims">0</div><div class="stat-lbl">🍽️ Claimed</div></div>
+    <div class="stat-card"><div class="stat-num" id="statKg">0 kg</div><div class="stat-lbl">⚖️ Total Shared</div></div>
+    <div class="stat-card"><div class="stat-num" id="statCO2">0 kg</div><div class="stat-lbl">🌿 CO₂ Saved</div></div>
+  </div>
+  <div class="badges-section">
+    <div class="badges-title">🏅 My Badges</div>
+    <div id="badgesWrap"><p style="color:var(--text2);font-size:13px;">Donate food to earn badges!</p></div>
+  </div>
+  <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- CLAIM MODAL -->
+<div class="modal-overlay" id="claimModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Claim this Food?</div>
+    <div class="modal-food-info">
+      <div class="modal-food-emoji" id="modalEmoji">🍱</div>
+      <div><div style="font-family:var(--font-sans);font-size:16px;font-weight:700;" id="modalName">Food Name</div><div style="font-size:12px;color:var(--text2);margin-top:3px;" id="modalMeta">Donor · Address</div></div>
+    </div>
+    <div style="background:var(--green-light);border-radius:10px;padding:12px;font-size:13px;color:var(--green-dark);font-weight:600;" id="modalDonorPhone">📞 Donor: N/A</div>
+    <div class="field"><label>📞 Your Number (shared with donor)</label><input type="tel" id="claimerPhone" placeholder="+91 XXXXXXXXXX"/></div>
+    <p style="font-size:13px;color:#6b7280;line-height:1.6;">Commit to pickup within <strong>30 minutes</strong>.</p>
+    <div style="display:flex;gap:10px;">
+      <button class="modal-close" onclick="closeClaimModal()" style="flex:1">Cancel</button>
+      <button class="modal-confirm" onclick="confirmClaim()" style="flex:2">✅ Confirm Claim</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI ESTIMATOR MODAL -->
+<div class="modal-overlay" id="aiModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📸 AI Food Weight Estimator</div>
+    <p style="font-size:13px;color:var(--text2);">Take a photo — AI will estimate weight & freshness!</p>
+    <input type="file" id="foodImageInput" accept="image/*" capture="environment" style="display:none;" onchange="previewImage(this)"/>
+    <img id="aiPreview" class="ai-preview"/>
+    <button onclick="document.getElementById('foodImageInput').click()" style="background:var(--surface2);border:2px dashed var(--border);border-radius:14px;padding:20px;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;">📷 Take Photo / Choose from Gallery</button>
+    <button id="aiEstimateBtn" onclick="estimateWeight()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:12px;padding:14px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">🤖 Estimate Weight with AI</button>
+    <div class="ai-result-card" id="aiResult">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.7);">Food Detected</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700;" id="aiFood">—</div></div>
+        <div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,0.7);">Estimated Weight</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700;" id="aiWeight">—</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.7);">Freshness</div><div style="font-size:14px;font-weight:600;" id="aiFreshness">—</div></div>
+        <div style="text-align:right;"><div style="font-size:11px;color:rgba(255,255,255,0.7);">Confidence</div><div style="font-size:14px;font-weight:600;" id="aiConfidence">—</div></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px;" id="aiNotes"></div>
+      <button class="use-est-btn" onclick="useEstimate()">✅ Use This Estimate</button>
+    </div>
+    <button onclick="closeAIModal()" style="background:var(--red-light);border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;color:#991b1b;cursor:pointer;">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  FIREBASE INIT
+//  ✅ Firebase config keys are safe to be public — they
+//     are protected by your Firestore Security Rules below.
+// ════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBJIXD_Bxnwl9-O9KUqU2J7qZ-tlcag5as",
+  authDomain: "zerobite-1e9ad.firebaseapp.com",
+  projectId: "zerobite-1e9ad",
+  storageBucket: "zerobite-1e9ad.firebasestorage.app",
+  messagingSenderId: "131119300671",
+  appId: "1:131119300671:web:0180848e15f422e84fb88a"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ════════════════════════════════════════════════════════
+//  ✅ SECURE: No API key here anymore.
+//  The AI call goes to /api/estimate on YOUR Vercel server.
+//  Your CLAUDE_KEY lives only in Vercel Environment Variables.
+// ════════════════════════════════════════════════════════
+
+// ── STATE ──
+let currentUser     = null;
+let mapInstance     = null;
+let currentFood     = null;
+let historyStack    = ['screen-login'];
+let userLat         = 11.0168, userLng = 76.9558;
+let confirmResult   = null;
+let recaptchaVerifier = null;
+let aiEstimateData  = null;
+const THRESHOLD     = 2.0;
+
+const CENTRES = [
+  {id:'biogas', name:'City Biogas Plant',   icon:'🔥', type:'Biogas'},
+  {id:'compost',name:'Green Compost Hub',   icon:'🌱', type:'Composting'},
+  {id:'pig',    name:'Animal Feed Centre',  icon:'🐷', type:'Animal Feed'},
+  {id:'vermi',  name:'Vermi Farm Unit',     icon:'🪱', type:'Vermicompost'},
+];
+
+function getCentreCoords(i){
+  const o=[[0.03,-0.02],[-0.02,0.03],[-0.04,-0.01],[0.02,0.04]];
+  return {lat:userLat+o[i][0], lng:userLng+o[i][1], address:'Near your location'};
+}
+function getBinCoords(i){
+  const o=[[0.01,0.01],[-0.01,0.02],[0.02,-0.01],[-0.02,-0.02],[0.015,0.03]];
+  return {lat:userLat+o[i][0], lng:userLng+o[i][1]};
+}
+function dist(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return (R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1);
+}
+
+// ── LOCATION ──
+function getLocation(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation) return resolve();
+    navigator.geolocation.getCurrentPosition(
+      p=>{userLat=p.coords.latitude; userLng=p.coords.longitude; resolve();},
+      ()=>resolve(), {enableHighAccuracy:true,timeout:8000}
+    );
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  AUTH — Firebase handles all OTP encryption securely.
+//  Phone numbers are never stored in plain text by us.
+// ════════════════════════════════════════════════════════
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    currentUser = user;
+    const name  = user.displayName || user.phoneNumber || 'User';
+    document.getElementById('heroName').textContent    = name+' 🌿';
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profileAvatar').textContent = (name[0]||'U').toUpperCase();
+    document.getElementById('profileSub').textContent  = user.email||user.phoneNumber||'';
+    showToast('📍 Getting your location...');
+    await getLocation();
+    showToast('✅ Welcome back!');
+    goTo('screen-home');
+    startListening();
+    loadStats();
+    startFreshnessWatcher();
+  } else {
+    currentUser = null;
+    goTo('screen-login');
+  }
+});
+
+function loginWithGoogle(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  showToast('⏳ Signing in...');
+  auth.signInWithPopup(provider).catch(e=>showToast('❌ '+e.message));
+}
+
+function showPhoneSection(){
+  document.getElementById('googleSection').style.display='none';
+  document.getElementById('phoneSection').style.display='flex';
+}
+function showGoogleSection(){
+  document.getElementById('googleSection').style.display='flex';
+  document.getElementById('phoneSection').style.display='none';
+  resetPhoneFlow();
+}
+
+// ── reCAPTCHA helpers (fixes "already rendered" error) ──
+function destroyRecaptcha(){
+  if(recaptchaVerifier){
+    try{ recaptchaVerifier.clear(); }catch(e){}
+    recaptchaVerifier = null;
+  }
+  const container = document.getElementById('recaptcha-container');
+  if(container) container.innerHTML = '';
+}
+
+function resetPhoneFlow(){
+  destroyRecaptcha();
+  confirmResult = null;
+  const otpDiv  = document.getElementById('otpDiv');
+  if(otpDiv) otpDiv.style.display='none';
+  const sendBtn = document.getElementById('sendOTPBtn');
+  if(sendBtn){ sendBtn.style.display='block'; sendBtn.disabled=false; sendBtn.textContent='📤 Send OTP'; }
+  const otpInput = document.getElementById('otpInput');
+  if(otpInput) otpInput.value='';
+}
+
+function sendOTP(){
+  const phone = document.getElementById('phoneInput').value.trim();
+  if(phone.length < 10) return showToast('⚠️ Enter a valid 10-digit number');
+  const fullPhone = '+91'+phone;
+
+  const sendBtn = document.getElementById('sendOTPBtn');
+  sendBtn.disabled = true;
+  sendBtn.textContent = '⏳ Sending...';
+
+  destroyRecaptcha(); // always destroy first to avoid "already rendered"
+
+  try{
+    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container',{
+      size:'invisible',
+      callback:()=>{}
+    });
+
+    showToast('📱 Sending OTP to '+fullPhone+'...');
+
+    auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier)
+      .then(result=>{
+        confirmResult = result;
+        document.getElementById('otpDiv').style.display='flex';
+        sendBtn.style.display='none';
+        showToast('✅ OTP sent! Check your SMS.');
+      })
+      .catch(e=>{
+        console.error('Phone auth error:', e);
+        let msg = e.message;
+        if(e.code==='auth/billing-not-enabled')
+          msg = '⚠️ Upgrade Firebase to Blaze plan to use Phone OTP.';
+        else if(e.code==='auth/invalid-phone-number')
+          msg = 'Invalid phone number. Please check and retry.';
+        else if(e.code==='auth/too-many-requests')
+          msg = 'Too many attempts. Wait a few minutes.';
+        showToast('❌ '+msg);
+        destroyRecaptcha();
+        sendBtn.disabled = false;
+        sendBtn.textContent = '📤 Send OTP';
+      });
+
+  }catch(e){
+    console.error('reCAPTCHA error:', e);
+    showToast('❌ reCAPTCHA error. Refresh and try again.');
+    destroyRecaptcha();
+    sendBtn.disabled = false;
+    sendBtn.textContent = '📤 Send OTP';
+  }
+}
+
+function verifyOTP(){
+  const otp = document.getElementById('otpInput').value.trim();
+  if(otp.length !== 6) return showToast('⚠️ Enter the 6-digit OTP');
+  if(!confirmResult)   return showToast('⚠️ Request OTP first');
+  showToast('⏳ Verifying...');
+  confirmResult.confirm(otp).catch(e=>{
+    let msg = e.message;
+    if(e.code==='auth/invalid-verification-code') msg='Wrong OTP. Please check and retry.';
+    if(e.code==='auth/code-expired') msg='OTP expired. Request a new one.';
+    showToast('❌ '+msg);
+  });
+}
+
+function doLogout(){
+  auth.signOut().then(()=>{
+    showToast('👋 Logged out');
+    historyStack = ['screen-login'];
+    resetPhoneFlow();
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  FIRESTORE LISTENERS
+// ════════════════════════════════════════════════════════
+function startListening(){
+  db.collection('foods').orderBy('createdAt','desc').onSnapshot(snap=>{
+    const foods=[];
+    snap.forEach(d=>foods.push({id:d.id,...d.data()}));
+    window._foods = foods;
+    renderFoodList(foods);
+    renderNearbyScroll(foods);
+    renderCommunityFeed(foods);
+    updateHeroStats(foods);
+  });
+  db.collection('threshold').doc('city').onSnapshot(snap=>{
+    if(snap.exists) updateThreshBar(snap.data().totalKg||0);
+  });
+  db.collection('notifications').orderBy('createdAt','desc').onSnapshot(snap=>{
+    const notifs=[];
+    snap.forEach(d=>notifs.push({id:d.id,...d.data()}));
+    renderNotifs(notifs);
+  });
+}
+
+// ── FRESHNESS WATCHER ──
+function startFreshnessWatcher(){
+  setInterval(()=>{
+    if(!window._foods) return;
+    const now = new Date();
+    window._foods.forEach(async food=>{
+      if(food.status!=='available'||!food.expiry) return;
+      const h  = (new Date(food.expiry)-now)/3600000;
+      const nf = h<=0?'expired':h<=1?'expiring':h<=3?'moderate':'fresh';
+      if(nf !== food.freshness){
+        await db.collection('foods').doc(food.id).update({freshness:nf});
+        if(nf==='expired'){
+          showToast('"'+food.name+'" expired — moving to threshold');
+          addToThreshold(food);
+        }
+      }
+    });
+  }, 60000);
+}
+
+async function addToThreshold(food){
+  await db.collection('foods').doc(food.id).update({status:'expired'});
+  const ref  = db.collection('threshold').doc('city');
+  const snap = await ref.get();
+  let kg = food.qty;
+  if(snap.exists){
+    kg = (snap.data().totalKg||0)+food.qty;
+    await ref.update({totalKg:firebase.firestore.FieldValue.increment(food.qty), updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  } else {
+    await ref.set({totalKg:food.qty, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  }
+  updateThreshBar(kg);
+  if(kg >= THRESHOLD) autoRoute(kg);
+}
+
+function updateThreshBar(kg){
+  const pct = Math.min((kg/THRESHOLD)*100, 100);
+  const bar = document.getElementById('aggBar');
+  const el  = document.getElementById('aggKg');
+  if(bar) bar.style.width = pct+'%';
+  if(el)  el.textContent  = kg.toFixed(1)+' kg';
+  if(kg >= THRESHOLD){ const r=document.getElementById('aggReady'); if(r) r.style.display='block'; }
+}
+
+async function autoRoute(totalKg){
+  for(let i=0;i<CENTRES.length;i++){
+    const c     = CENTRES[i];
+    const coord = getCentreCoords(i);
+    const d     = dist(userLat,userLng,coord.lat,coord.lng);
+    await db.collection('notifications').add({
+      centreId:c.id, centreName:c.name, centreType:c.type,
+      message:'🚨 '+totalKg.toFixed(1)+' kg expired food reached threshold. '+d+' km from your centre. Please arrange pickup.',
+      totalKg, status:'sent', isNearest:i===0,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  await db.collection('threshold').doc('city').set({totalKg:0, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  updateThreshBar(0);
+  showToast('🚨 '+totalKg.toFixed(1)+' kg auto-routed! All centres notified.');
+  const al = document.getElementById('autoRouteAlert');
+  if(al){
+    al.innerHTML='<div style="background:linear-gradient(135deg,#052e16,#166534);border-radius:16px;padding:20px;margin:16px;color:#fff;"><div style="font-size:24px;margin-bottom:8px;">🚨 Auto-Route Triggered!</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700;">'+totalKg.toFixed(1)+' kg Threshold Reached</div><div style="margin-top:10px;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;font-size:12px;">✅ All 4 centres notified · 📍 Bins marked on map</div></div>';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  DONATE
+// ════════════════════════════════════════════════════════
+function submitDonation(){
+  if(!currentUser) return showToast('❌ Please login first');
+  const name    = document.getElementById('foodName').value.trim();
+  const qty     = parseFloat(document.getElementById('foodQty').value);
+  const expiry  = document.getElementById('expiryInput').value;
+  const address = document.getElementById('foodAddress').value.trim();
+  const phone   = document.getElementById('donorPhone').value.trim();
+  const notes   = document.getElementById('foodNotes').value.trim();
+  if(!name||!qty||!expiry||!address) return showToast('⚠️ Fill all required fields');
+  if(!phone) return showToast('⚠️ Enter your contact number');
+
+  const EMOJIS = {rice:'🍚',biryani:'🍛',idli:'🍚',chapati:'🫓',roti:'🫓',fruit:'🍎',curry:'🍲',dal:'🍲',bread:'🍞'};
+  let emoji='🍱';
+  const nl = name.toLowerCase();
+  for(const[k,v]of Object.entries(EMOJIS)){if(nl.includes(k)){emoji=v;break;}}
+
+  const h        = (new Date(expiry)-new Date())/3600000;
+  const freshness= h<=0?'expired':h<=1?'expiring':h<=3?'moderate':'fresh';
+
+  document.getElementById('submitBtn').textContent='⏳ Posting...';
+  document.getElementById('submitBtn').disabled=true;
+
+  db.collection('foods').add({
+    name,qty,expiry,address,notes,freshness,emoji,
+    donorName : currentUser.displayName||currentUser.phoneNumber||'Anonymous',
+    donorId   : currentUser.uid,
+    donorPhone: phone,
+    donorEmail: currentUser.email||'',
+    lat: userLat+(Math.random()-0.5)*0.01,
+    lng: userLng+(Math.random()-0.5)*0.01,
+    status  : freshness==='expired'?'expired':'available',
+    claimedBy: null,
+    co2Saved: qty*2.5,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(ref=>{
+    if(freshness==='expired') addToThreshold({id:ref.id,name,qty,freshness:'expired'});
+    showToast('🎁 Donation posted!');
+    ['foodName','foodQty','foodAddress','foodNotes','expiryInput','donorPhone'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    goTo('screen-home');
+    updateUserStats('donations',qty,phone);
+  }).catch(e=>showToast('❌ '+e.message))
+  .finally(()=>{
+    document.getElementById('submitBtn').textContent='🎁 Post Donation';
+    document.getElementById('submitBtn').disabled=false;
+  });
+}
+
+// ── CLAIM ──
+function openClaim(foodId){
+  const food = window._foods?.find(f=>f.id===foodId);
+  if(!food) return;
+  currentFood = food;
+  document.getElementById('modalEmoji').textContent    = food.emoji||'🍱';
+  document.getElementById('modalName').textContent     = food.name;
+  document.getElementById('modalMeta').textContent     = food.donorName+' · '+food.address+' · '+food.qty+' kg';
+  document.getElementById('modalDonorPhone').textContent = '📞 Donor: '+(food.donorPhone||'N/A');
+  if(currentUser?.phoneNumber) document.getElementById('claimerPhone').value = currentUser.phoneNumber;
+  document.getElementById('claimModal').classList.add('open');
+}
+function closeClaimModal(){ document.getElementById('claimModal').classList.remove('open'); }
+
+function confirmClaim(){
+  if(!currentFood||!currentUser) return;
+  const claimerPhone = document.getElementById('claimerPhone').value.trim();
+  db.collection('foods').doc(currentFood.id).update({
+    status     : 'claimed',
+    claimedBy  : currentUser.uid,
+    claimedByName: currentUser.displayName||currentUser.phoneNumber||'User',
+    claimerPhone,
+    claimedAt  : firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{
+    closeClaimModal();
+    showToast('✅ Claimed! Contact donor: '+(currentFood.donorPhone||'N/A'));
+    updateUserStats('claims',currentFood.qty,claimerPhone);
+    loadStats();
+  }).catch(e=>showToast('❌ '+e.message));
+}
+
+function deleteFood(foodId){
+  if(!confirm('Delete this donation?')) return;
+  db.collection('foods').doc(foodId).delete()
+    .then(()=>showToast('🗑️ Removed'))
+    .catch(e=>showToast('❌ '+e.message));
+}
+
+// ── REDIRECT ──
+function redirectTo(type){
+  const c = CENTRES.find(x=>x.id===type); if(!c) return;
+  const kg = parseFloat(document.getElementById('aggKg')?.textContent)||1;
+  showToast(c.icon+' Notifying '+c.name+'...');
+  db.collection('notifications').add({
+    centreId:c.id, centreName:c.name, centreType:c.type,
+    message:'📦 Manual: '+kg.toFixed(1)+' kg expired food ready for collection.',
+    totalKg:kg, status:'sent', isNearest:false,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>showToast('✅ '+c.name+' notified!')).catch(e=>showToast('❌ '+e.message));
+  goTo('screen-notifications');
+}
+
+// ── MAPS ──
+function showMapForFood(foodId){
+  const food = window._foods?.find(f=>f.id===foodId);
+  if(!food) return showToast('Food not found');
+  currentFood = food;
+  document.getElementById('mapFoodIcon').textContent = food.emoji||'🍱';
+  document.getElementById('mapFoodName').textContent = food.name;
+  document.getElementById('mapDonorInfo').textContent= food.donorName+' · '+food.qty+' kg';
+  goTo('screen-map');
+  setTimeout(()=>{
+    const el = document.getElementById('map-container');
+    el.style.height = (window.innerHeight-180)+'px';
+    if(mapInstance){mapInstance.remove();mapInstance=null;}
+    mapInstance = L.map('map-container').setView([food.lat,food.lng],15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mapInstance);
+    const di = L.divIcon({html:'<div style="background:#16a34a;border:3px solid white;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">'+(food.emoji||'🍱')+'</div>',className:'',iconSize:[44,44],iconAnchor:[22,22]});
+    L.marker([food.lat,food.lng],{icon:di}).addTo(mapInstance).bindPopup('<strong>'+food.name+'</strong><br>'+food.donorName+'<br>📞 '+(food.donorPhone||'N/A')+'<br>📍 '+food.address+'<br>⚖️ '+food.qty+' kg').openPopup();
+    const ui = L.divIcon({html:'<div style="background:#3b82f6;border:3px solid white;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">📍</div>',className:'',iconSize:[34,34],iconAnchor:[17,17]});
+    L.marker([userLat,userLng],{icon:ui}).addTo(mapInstance).bindPopup('📍 Your Location');
+    L.polyline([[userLat,userLng],[food.lat,food.lng]],{color:'#16a34a',weight:4,dashArray:'8,6',opacity:0.8}).addTo(mapInstance);
+    const d = dist(userLat,userLng,food.lat,food.lng);
+    document.getElementById('mapDonorInfo').textContent = food.donorName+' · '+d+' km · 📞 '+(food.donorPhone||'N/A');
+  },200);
+}
+
+function showExpiredMap(){
+  document.getElementById('mapFoodIcon').textContent  = '♻️';
+  document.getElementById('mapFoodName').textContent  = 'Expired Food Collection Map';
+  document.getElementById('mapDonorInfo').textContent = '🗑️ Red Bins · 🏭 Green Centres';
+  goTo('screen-map');
+  setTimeout(()=>{
+    const el = document.getElementById('map-container');
+    el.style.height = (window.innerHeight-180)+'px';
+    if(mapInstance){mapInstance.remove();mapInstance=null;}
+    mapInstance = L.map('map-container').setView([userLat,userLng],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mapInstance);
+    const ui = L.divIcon({html:'<div style="background:#3b82f6;border:3px solid white;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">📍</div>',className:'',iconSize:[34,34],iconAnchor:[17,17]});
+    L.marker([userLat,userLng],{icon:ui}).addTo(mapInstance).bindPopup('📍 Your Location').openPopup();
+    for(let i=0;i<5;i++){
+      const b  = getBinCoords(i);
+      const bi = L.divIcon({html:'<div style="background:#ef4444;border:3px solid white;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">🗑️</div>',className:'',iconSize:[40,40],iconAnchor:[20,20]});
+      L.marker([b.lat,b.lng],{icon:bi}).addTo(mapInstance).bindPopup('<strong>Expired Food Bin #'+(i+1)+'</strong><br>📏 '+dist(userLat,userLng,b.lat,b.lng)+' km away<br>Drop expired food here');
+    }
+    CENTRES.forEach((c,i)=>{
+      const coord = getCentreCoords(i);
+      const ci    = L.divIcon({html:'<div style="background:#16a34a;border:3px solid white;border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">'+c.icon+'</div>',className:'',iconSize:[44,44],iconAnchor:[22,22]});
+      L.marker([coord.lat,coord.lng],{icon:ci}).addTo(mapInstance).bindPopup('<strong>'+c.name+'</strong><br>'+c.type+'<br>📏 '+dist(userLat,userLng,coord.lat,coord.lng)+' km away');
+    });
+  },200);
+}
+
+function openGoogleMaps(){
+  if(!currentFood) return;
+  window.open('https://www.google.com/maps/dir/'+userLat+','+userLng+'/'+currentFood.lat+','+currentFood.lng,'_blank');
+}
+
+// ════════════════════════════════════════════════════════
+//  ✅ SECURE AI ESTIMATOR
+//  Calls /api/estimate on your own Vercel server.
+//  Sends the user's Firebase ID token so only logged-in
+//  users can use it. Your CLAUDE_KEY never touches the browser.
+// ════════════════════════════════════════════════════════
+function openAIModal(){ document.getElementById('aiModal').classList.add('open'); }
+function closeAIModal(){ document.getElementById('aiModal').classList.remove('open'); }
+
+function previewImage(input){
+  const file = input.files[0]; if(!file) return;
+  const prev = document.getElementById('aiPreview');
+  prev.src   = URL.createObjectURL(file);
+  prev.style.display = 'block';
+}
+
+async function estimateWeight(){
+  const file = document.getElementById('foodImageInput').files[0];
+  if(!file) return showToast('⚠️ Please take or upload a photo first');
+
+  const btn = document.getElementById('aiEstimateBtn');
+  btn.textContent = '🤖 Analyzing...';
+  btn.disabled    = true;
+  document.getElementById('aiResult').style.display = 'none';
+
+  try{
+    // Convert image to base64
+    const base64 = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload  = ()=>res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    // Get the user's Firebase token to authenticate the request
+    const idToken = await currentUser.getIdToken();
+
+    const prompt = 'You are a food weight estimation expert. Look at this food image and estimate: 1. What food item you see 2. Approximate weight in kg 3. Freshness (Fresh/Moderate/Expiring) 4. Confidence (High/Medium/Low). Reply ONLY with JSON: {"food":"name","weight_kg":1.5,"freshness":"Fresh","confidence":"High","notes":"brief note"}';
+
+    // ✅ Call YOUR Vercel backend — not Anthropic directly
+    const resp = await fetch('/api/estimate', {
+      method : 'POST',
+      headers: {
+        'Content-Type' : 'application/json',
+        'Authorization': 'Bearer '+idToken   // proves the user is logged in
+      },
+      body: JSON.stringify({
+        model     : 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages  : [{
+          role   : 'user',
+          content: [
+            {type:'image', source:{type:'base64', media_type:file.type||'image/jpeg', data:base64}},
+            {type:'text',  text:prompt}
+          ]
+        }]
+      })
+    });
+
+    const data   = await resp.json();
+    const text   = data.content[0].text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(text);
+
+    aiEstimateData = result;
+    document.getElementById('aiFood').textContent       = result.food||'Food';
+    document.getElementById('aiWeight').textContent     = result.weight_kg+' kg';
+    document.getElementById('aiFreshness').textContent  = result.freshness||'Fresh';
+    document.getElementById('aiConfidence').textContent = result.confidence||'Medium';
+    document.getElementById('aiNotes').textContent      = result.notes||'';
+    document.getElementById('aiResult').style.display   = 'block';
+
+  }catch(e){
+    showToast('❌ AI failed — enter weight manually');
+    console.error(e);
+  }finally{
+    btn.textContent = '🤖 Estimate Weight with AI';
+    btn.disabled    = false;
+  }
+}
+
+function useEstimate(){
+  if(!aiEstimateData) return;
+  document.getElementById('foodQty').value = aiEstimateData.weight_kg;
+  if(aiEstimateData.food && !document.getElementById('foodName').value)
+    document.getElementById('foodName').value = aiEstimateData.food;
+  const fmap  = {'Fresh':'fresh','Moderate':'moderate','Expiring':'expiring'};
+  const ftype = fmap[aiEstimateData.freshness]||'fresh';
+  document.querySelectorAll('.freshness-opt').forEach(o=>o.classList.remove('selected'));
+  document.querySelector('.freshness-opt[data-type="'+ftype+'"]')?.classList.add('selected');
+  showToast('✅ Weight set to '+aiEstimateData.weight_kg+' kg!');
+  closeAIModal();
+}
+
+// ════════════════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ════════════════════════════════════════════════════════
+function renderFoodList(foods){
+  const wrap = document.getElementById('foodList'); if(!wrap) return;
+  const available = foods.filter(f=>f.status==='available');
+  const sv = document.getElementById('searchInput')?.value?.toLowerCase()||'';
+  const fv = document.getElementById('freshnessFilter')?.value||'all';
+  const filtered = available.filter(f=>{
+    const ms = !sv||f.name.toLowerCase().includes(sv)||f.address.toLowerCase().includes(sv);
+    const mf = fv==='all'||f.freshness===fv;
+    return ms&&mf;
+  });
+  if(!filtered.length){
+    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--text2);"><div style="font-size:48px;margin-bottom:12px;">🍽️</div><p>No food available yet.<br>Be the first to donate!</p></div>';
+    return;
+  }
+  wrap.innerHTML = filtered.map(f=>{
+    const bCls = 'badge-'+(f.freshness==='expiring'?'expiring':f.freshness==='moderate'?'moderate':'fresh');
+    const bLbl = f.freshness==='fresh'?'🟢 Fresh':f.freshness==='moderate'?'🟡 Moderate':'🔴 Expiring';
+    const isOwn= f.donorId===currentUser?.uid;
+    const d    = dist(userLat,userLng,f.lat||userLat,f.lng||userLng);
+    const h    = f.expiry?Math.max(0,((new Date(f.expiry)-new Date())/3600000)).toFixed(1):'?';
+    return '<div class="food-card"><div class="food-card-img">'+(f.emoji||'🍱')+'<div class="freshness-badge '+bCls+'">'+bLbl+'</div><div class="exp-timer">⏱ '+h+'h</div></div><div class="food-card-body"><div class="food-card-name">'+f.name+'</div><div class="food-card-meta"><div class="food-card-dist">📍 '+d+' km · '+f.donorName+'</div><div class="food-card-qty">⚖️ '+f.qty+' kg</div></div><div class="food-card-phone">📞 '+(f.donorPhone||'Contact via app')+'</div>'+(f.notes?'<div style="font-size:12px;color:var(--text2);margin-top:4px;">📝 '+f.notes+'</div>':'')+'</div><div class="food-card-actions"><button class="action-btn-map" onclick="showMapForFood(\''+f.id+'\')">🗺️ Map</button>'+(isOwn?'<button class="action-btn-delete" onclick="deleteFood(\''+f.id+'\')">🗑️ Delete</button>':'<button class="action-btn-claim" onclick="openClaim(\''+f.id+'\')">Claim ✅</button>')+'</div></div>';
+  }).join('');
+}
+
+function renderNearbyScroll(foods){
+  const wrap = document.getElementById('nearbyScroll'); if(!wrap) return;
+  const av   = foods.filter(f=>f.status==='available').slice(0,5);
+  if(!av.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;">No food nearby yet!</div>'; return; }
+  wrap.innerHTML = av.map(f=>{
+    const cls = f.freshness==='fresh'?'fresh-bar':f.freshness==='moderate'?'moderate-bar':'expiring-bar';
+    const lbl = f.freshness==='fresh'?'🟢 Fresh':f.freshness==='moderate'?'🟡 Moderate':'🔴 Expiring';
+    const d   = dist(userLat,userLng,f.lat||userLat,f.lng||userLng);
+    return '<div class="food-mini-card" onclick="showMapForFood(\''+f.id+'\')"><div class="food-mini-img">'+(f.emoji||'🍱')+'</div><div class="food-mini-body"><div class="food-mini-name">'+f.name+'</div><div class="food-mini-dist">📍 '+d+' km</div><div class="freshness-bar '+cls+'"></div><div class="freshness-label lbl-'+f.freshness+'">'+lbl+'</div></div></div>';
+  }).join('');
+}
+
+function renderCommunityFeed(foods){
+  const wrap = document.getElementById('communityFeed'); if(!wrap) return;
+  if(!foods.length){ wrap.innerHTML='<div class="feed-card"><div class="feed-text"><p>No activity yet. Start donating!</p></div></div>'; return; }
+  wrap.innerHTML = foods.slice(0,5).map(f=>{
+    const action = f.status==='claimed'?'collected by '+(f.claimedByName||'someone'):f.status==='expired'?'moved to threshold':'donated';
+    const icon   = f.status==='claimed'?'✅':f.status==='expired'?'♻️':'🎁';
+    return '<div class="feed-card"><div class="feed-avatar">'+(f.emoji||'🍱')+'</div><div class="feed-text"><p><strong>'+f.name+'</strong> ('+f.qty+' kg) '+action+' '+icon+'</p><div class="feed-time">📍 '+f.address+'</div></div></div>';
+  }).join('');
+}
+
+function renderNotifs(notifs){
+  const wrap = document.getElementById('notifList'); if(!wrap) return;
+  if(!notifs.length){ wrap.innerHTML='<p style="color:var(--text2);font-size:13px;padding:16px;">No notifications yet.</p>'; return; }
+  wrap.innerHTML = notifs.slice(0,10).map(n=>{
+    const c = CENTRES.find(x=>x.id===n.centreId);
+    return '<div style="background:var(--surface);border-radius:14px;padding:16px;border:1.5px solid var(--border);margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:24px;">'+(c?.icon||'📢')+'</span><div style="flex:1;"><div style="font-family:var(--font-sans);font-size:14px;font-weight:700;">'+n.centreName+'</div><div style="font-size:11px;color:var(--text2);">'+n.centreType+(n.isNearest?' · 🏆 Primary':'')+'</div></div>'+(n.isNearest?'<div style="background:var(--green-light);color:var(--green-dark);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;">PRIMARY</div>':'')+'</div><div style="font-size:13px;color:var(--text);line-height:1.5;">'+n.message+'</div></div>';
+  }).join('');
+}
+
+function updateHeroStats(foods){
+  const av = foods.filter(f=>f.status==='available');
+  const kg = foods.reduce((s,f)=>s+(f.qty||0),0);
+  document.getElementById('heroMeals').textContent    = Math.round(kg*3.5);
+  document.getElementById('heroKg').textContent       = kg.toFixed(0)+' kg';
+  document.getElementById('heroDonors').textContent   = av.length;
+  document.getElementById('communityKg').textContent  = (kg/1000).toFixed(2);
+}
+
+// ── USER STATS ──
+function updateUserStats(type,qty,phone){
+  if(!currentUser) return;
+  const ref = db.collection('users').doc(currentUser.uid);
+  ref.get().then(snap=>{
+    if(snap.exists){
+      ref.update({
+        donations: type==='donations'?firebase.firestore.FieldValue.increment(1):firebase.firestore.FieldValue.increment(0),
+        claims   : type==='claims'   ?firebase.firestore.FieldValue.increment(1):firebase.firestore.FieldValue.increment(0),
+        kgShared : firebase.firestore.FieldValue.increment(qty),
+        co2Saved : firebase.firestore.FieldValue.increment(qty*2.5),
+        phone    : phone||snap.data().phone||''
+      });
+    } else {
+      ref.set({
+        name: currentUser.displayName||currentUser.phoneNumber||'User',
+        email: currentUser.email||'', phone,
+        donations: type==='donations'?1:0,
+        claims   : type==='claims'   ?1:0,
+        kgShared : qty,
+        co2Saved : qty*2.5,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  });
+}
+
+function loadStats(){
+  if(!currentUser) return;
+  db.collection('users').doc(currentUser.uid).get().then(snap=>{
+    if(snap.exists){
+      const d = snap.data();
+      document.getElementById('statDonations').textContent = d.donations||0;
+      document.getElementById('statClaims').textContent    = d.claims||0;
+      document.getElementById('statKg').textContent        = (d.kgShared||0).toFixed(1)+' kg';
+      document.getElementById('statCO2').textContent       = (d.co2Saved||0).toFixed(1)+' kg';
+      document.getElementById('statPhone').textContent     = d.phone||currentUser.phoneNumber||'Not set';
+      const badges=[];
+      if((d.donations||0)>=1)  badges.push('🌱 First Donor');
+      if((d.donations||0)>=5)  badges.push('⭐ Regular Donor');
+      if((d.donations||0)>=10) badges.push('🏆 Food Hero');
+      if((d.kgShared||0)>=10)  badges.push('🌍 Eco Warrior');
+      if((d.co2Saved||0)>=25)  badges.push('💚 Green Champion');
+      const w = document.getElementById('badgesWrap');
+      if(w) w.innerHTML = badges.length
+        ? badges.map(b=>'<div class="badge-chip">'+b+'</div>').join('')
+        : '<p style="color:var(--text2);font-size:13px;">Donate food to earn badges!</p>';
+    }
+  });
+}
+
+// ── NAV & UTILS ──
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(id); if(el) el.classList.add('active');
+  if(historyStack[historyStack.length-1]!==id) historyStack.push(id);
+  if(id==='screen-profile') loadStats();
+}
+function goBack(){
+  if(historyStack.length>1){
+    historyStack.pop();
+    const prev = historyStack[historyStack.length-1];
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const el = document.getElementById(prev); if(el) el.classList.add('active');
+  }
+}
+function filterFoods(){ if(window._foods) renderFoodList(window._foods); }
+function selectFreshness(el,type){
+  document.querySelectorAll('.freshness-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected'); el.dataset.type=type;
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3500);
+}
+window._foods = [];
+</script>
+</body>
+</html>
